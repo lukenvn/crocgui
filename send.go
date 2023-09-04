@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"github.com/skip2/go-qrcode"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	log "github.com/schollz/logger"
-
-	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/schollz/croc/v9/src/croc"
 	"github.com/schollz/croc/v9/src/utils"
+	log "github.com/schollz/logger"
 )
 
 func sendTabItem(a fyne.App, w fyne.Window) *container.TabItem {
@@ -25,6 +26,8 @@ func sendTabItem(a fyne.App, w fyne.Window) *container.TabItem {
 	logInfo.Wrapping = fyne.TextWrapWord
 
 	status := widget.NewLabel("")
+	//var qrImage = canvas.NewImageFromImage(nil)
+	qrImageContainer := container.NewHBox()
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error(fmt.Sprint(r))
@@ -134,6 +137,7 @@ func sendTabItem(a fyne.App, w fyne.Window) *container.TabItem {
 		}
 		copyCodeButton.Hide()
 		sendEntry.Enable()
+		clearQrCode(qrImageContainer)
 	}
 
 	sendButton = widget.NewButtonWithIcon(lp("Send"), theme.MailSendIcon(), func() {
@@ -169,6 +173,8 @@ func sendTabItem(a fyne.App, w fyne.Window) *container.TabItem {
 		log.Trace("croc sender created")
 
 		var filename string
+		displayQrCode(sendEntry, qrImageContainer)
+
 		status.SetText(fmt.Sprintf("%s: %s", lp("Receive Code"), sendEntry.Text))
 		copyCodeButton.Show()
 		prog.Show()
@@ -234,7 +240,6 @@ func sendTabItem(a fyne.App, w fyne.Window) *container.TabItem {
 	})
 
 	activeButtonHolder.Add(sendButton)
-
 	return container.NewTabItemWithIcon(lp("Send"), theme.MailSendIcon(),
 		container.NewVBox(
 			container.NewHBox(topline, layout.NewSpacer(), addFileButton),
@@ -242,8 +247,25 @@ func sendTabItem(a fyne.App, w fyne.Window) *container.TabItem {
 			senderScroller,
 			activeButtonHolder,
 			prog,
+			qrImageContainer,
 			container.NewHBox(status, copyCodeButton),
 			debugBox,
 			logInfo,
 		))
+}
+
+func clearQrCode(qrImageContainer *fyne.Container) {
+	qrImageContainer.Objects = []fyne.CanvasObject{}
+}
+
+func displayQrCode(sendEntry *widget.Entry, qrImageContainer *fyne.Container) {
+	_ = qrcode.WriteFile(
+		sendEntry.Text,
+		qrcode.Highest,
+		256,
+		"qrcode.png",
+	)
+	qrImage := canvas.NewImageFromFile("qrcode.png")
+	qrImage.SetMinSize(fyne.NewSize(256, 256))
+	qrImageContainer.Objects = []fyne.CanvasObject{qrImage}
 }
